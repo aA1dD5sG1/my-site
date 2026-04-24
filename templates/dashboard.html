@@ -1,15 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
 
-<h1>مرحبا {{ user }} 🎉</h1>
+<body class="bg-dark text-white">
 
-<p>تم تسجيل الدخول بنجاح</p>
+<div class="container mt-4">
 
-<a href="/logout">Logout</a>
+<h2>🛡 Dashboard</h2>
 
+<a href="/scan" class="btn btn-primary">New Scan</a>
+<a href="/logout" class="btn btn-danger">Logout</a>
+
+<p>Total Scans: {{ scans|length }}</p>
+
+<table class="table table-dark table-striped mt-3">
+<tr>
+  <th>URL</th>
+  <th>Result</th>
+  <th>Date</th>
+</tr>
+
+{% for s in scans %}
+<tr>
+  <td>{{ s[1] }}</td>
+  <td>{{ s[2] }}</td>
+  <td>{{ s[3] }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+</div>
 </body>
 </html>
