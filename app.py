@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# عداد + تخزين النتائج
 scan_count = 0
 scan_history = []
 
@@ -18,7 +19,6 @@ def login():
 
 @app.route('/dashboard')
 def dashboard():
-    global scan_count, scan_history
     return render_template("dashboard.html", scans=scan_count, history=scan_history)
 
 @app.route('/scan', methods=['GET', 'POST'])
@@ -33,17 +33,37 @@ def scan():
 
         scan_count += 1
 
-        if not url.startswith("http"):
-            results.append("❌ Invalid URL")
-            status = "danger"
-        else:
-            results.append("⚠️ Missing X-Frame-Options")
-            results.append("⚠️ Missing CSP")
-            results.append("⚠️ Missing X-Content-Type-Options")
-            results.append("ℹ️ Found 1 forms")
-            status = "warning"
+        try:
+            r = requests.get(url, timeout=5)
+            headers = r.headers
 
-        # حفظ النتيجة
+            # فحص الهيدرز
+            if "X-Frame-Options" not in headers:
+                results.append("⚠️ Missing X-Frame-Options")
+                status = "warning"
+
+            if "Content-Security-Policy" not in headers:
+                results.append("⚠️ Missing CSP")
+                status = "warning"
+
+            if "X-Content-Type-Options" not in headers:
+                results.append("⚠️ Missing X-Content-Type-Options")
+                status = "warning"
+
+            # تحليل الصفحة
+            soup = BeautifulSoup(r.text, "html.parser")
+            forms = soup.find_all("form")
+
+            if forms:
+                results.append(f"ℹ️ Found {len(forms)} forms")
+
+            if not results:
+                results.append("✅ No obvious issues found")
+
+        except:
+            results.append("❌ Error scanning site")
+            status = "danger"
+
         scan_history.append({
             "url": url,
             "status": status
