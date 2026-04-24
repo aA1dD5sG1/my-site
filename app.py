@@ -1,4 +1,5 @@
 from flask import Flask, request, redirect, url_for, render_template
+import os
 
 app = Flask(__name__)
 
@@ -30,7 +31,7 @@ def login():
 
         print("LOGIN ATTEMPT:")
         print("Username:", username)
-        print("Password:", password)
+        print("Password:", password)  # ⚠️ تمت إضافتها
 
         # مثال بسيط
         if username == "admin" and password == "1234":
@@ -57,5 +58,7 @@ def logout():
     return redirect('/login')
 
 
+# تشغيل مناسب لـ Render
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
