@@ -1,28 +1,45 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Scan</title>
+    <style>
+        body { background:#0f172a; color:white; font-family:Arial; }
+        .box { max-width:600px; margin:auto; padding:20px; }
+        input { width:70%; padding:10px; }
+        button { padding:10px; background:#2563eb; color:white; border:none; }
+
+        .card {
+            padding:10px;
+            margin:10px 0;
+            border-radius:8px;
+        }
+
+        .low { background:#1e40af; }
+        .medium { background:#ca8a04; }
+        .high { background:#dc2626; }
+        .info { background:#334155; }
+    </style>
+</head>
 <body>
 
-<h2>Scan Website</h2>
+<div class="box">
+    <h1>🔍 Scan Website</h1>
 
-<form method="POST">
-  <input name="url" placeholder="http://example.com">
-  <button onclick="this.innerText='Scanning...'">Scan</button>
-</form>
+    <form method="POST">
+        <input name="url" placeholder="http://example.com">
+        <button>Scan</button>
+    </form>
 
-{% if error %}
-<p style="color:red;">{{ error }}</p>
-{% endif %}
+    {% if results %}
+        <h2>Results for {{ url }}</h2>
 
-{% if results %}
-<h3>Results for {{target}}</h3>
-<ul>
-  {% for r in results %}
-    <li>{{ r }}</li>
-  {% endfor %}
-</ul>
-{% endif %}
-
-<a href="/dashboard">Back</a>
+        {% for r, level in results %}
+            <div class="card {{ level }}">
+                {{ r }}
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
 
 </body>
 </html>
