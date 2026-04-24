@@ -1,3 +1,5 @@
 flask
 werkzeug
+requests
+beautifulsoup4
 gunicorn
