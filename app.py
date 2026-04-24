@@ -1,21 +1,22 @@
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, request, redirect
 import os
+import sys
 
 app = Flask(__name__)
 
-# تسجيل كل الطلبات (قبل تنفيذ أي route)
+# تسجيل كل الطلبات
 @app.before_request
 def log_request_info():
-    print("\n====== NEW REQUEST ======")
-    print("IP:", request.remote_addr)
-    print("Method:", request.method)
-    print("URL:", request.url)
-    print("User-Agent:", request.headers.get('User-Agent'))
+    print("\n====== NEW REQUEST ======", flush=True)
+    print("IP:", request.remote_addr, flush=True)
+    print("Method:", request.method, flush=True)
+    print("URL:", request.url, flush=True)
+    print("User-Agent:", request.headers.get('User-Agent'), flush=True)
     
     if request.method == "POST":
-        print("POST DATA:", request.form)
+        print("POST DATA:", request.form, flush=True)
     else:
-        print("GET PARAMS:", request.args)
+        print("GET PARAMS:", request.args, flush=True)
 
 # الصفحة الرئيسية
 @app.route('/')
@@ -29,20 +30,20 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        print("LOGIN ATTEMPT:")
-        print("Username:", username)
-        print("Password:", password)  # ⚠️ تمت إضافتها
+        print("====== LOGIN ATTEMPT ======", flush=True)
+        print("Username:", username, flush=True)
+        print("Password:", password, flush=True)
+        sys.stdout.flush()
 
-        # مثال بسيط
         if username == "admin" and password == "1234":
             return redirect("/dashboard")
         else:
             return "Login Failed"
 
     return '''
-    <form method="POST">
-        <input name="username" placeholder="Username"><br>
-        <input name="password" type="password" placeholder="Password"><br>
+    <form method="POST" action="/login">
+        <input name="username" placeholder="Username" required><br>
+        <input name="password" type="password" placeholder="Password" required><br>
         <button type="submit">Login</button>
     </form>
     '''
