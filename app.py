@@ -1,66 +1,146 @@
-from flask import Flask, request, redirect, render_template
+from flask import Flask, render_template, request, redirect, session
+import sqlite3
+import datetime
 import requests
-import logging
-import os
+from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+import os
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
+app.secret_key = "secret123"
 
-scan_history = []
+# إنشاء قاعدة البيانات
+def init_db():
+    conn = sqlite3.connect("data.db")
+    c = conn.cursor()
 
-@app.route('/')
-def home():
-    return render_template("index.html", history=scan_history)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS scans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT,
+        result TEXT,
+        date TEXT
+    )
+    """)
 
-@app.route('/scan', methods=['POST'])
-def scan():
-    url = request.form.get('url')
+    conn.commit()
+    conn.close()
 
-    parsed = urlparse(url)
-    if not parsed.scheme.startswith("http"):
-        return "Invalid URL"
+init_db()
 
-    report = []
+# 🏠 الصفحة الرئيسية
+@app.route("/")
+def index():
+    return redirect("/login")
+
+# 🔐 تسجيل الدخول
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        print("LOGIN:", username, password)
+
+        session["user"] = username
+        return redirect("/dashboard")
+
+    return render_template("login.html")
+
+# 📊 Dashboard
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect("/login")
+
+    conn = sqlite3.connect("data.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM scans ORDER BY id DESC")
+    scans = c.fetchall()
+    conn.close()
+
+    return render_template("dashboard.html", scans=scans)
+
+# 🧠 Scanner
+def scan_website(url):
+    results = []
 
     try:
         res = requests.get(url, timeout=5)
         headers = res.headers
-        html = res.text.lower()
 
-        # Security checks
-        if "content-security-policy" not in headers:
-            report.append("❌ Missing CSP")
+        # Headers
+        if "X-Frame-Options" not in headers:
+            results.append("⚠️ Missing X-Frame-Options")
 
-        if "x-frame-options" not in headers:
-            report.append("❌ Missing X-Frame-Options")
+        if "Content-Security-Policy" not in headers:
+            results.append("⚠️ Missing CSP")
 
-        if "x-content-type-options" not in headers:
-            report.append("❌ Missing X-Content-Type-Options")
+        if "X-Content-Type-Options" not in headers:
+            results.append("⚠️ Missing X-Content-Type-Options")
 
-        if "strict-transport-security" not in headers:
-            report.append("❌ Missing HSTS")
+        # تحليل الصفحة
+        soup = BeautifulSoup(res.text, "html.parser")
+        forms = soup.find_all("form")
 
-        if "<script>" in html:
-            report.append("⚠️ Inline JS detected")
+        if forms:
+            results.append(f"ℹ️ Found {len(forms)} forms")
 
-        if "password" in html:
-            report.append("🔎 Login form detected")
+        # اختبار XSS بسيط
+        payload = "<script>alert(1)</script>"
+        test_url = url + "?test=" + payload
 
-        if not report:
-            report.append("✅ No major issues")
+        test_res = requests.get(test_url)
+
+        if payload in test_res.text:
+            results.append("🚨 Possible XSS")
+
+        if not results:
+            results.append("✅ No major issues")
 
     except Exception as e:
-        report.append(f"Error: {e}")
+        results.append(f"❌ Error: {e}")
 
-    # حفظ في التاريخ
-    scan_history.insert(0, {
-        "url": url,
-        "report": report
-    })
+    return results
 
-    return redirect('/')
+# 🔍 Route الفحص (محسّن)
+@app.route("/scan", methods=["GET", "POST"])
+def scan():
+    if "user" not in session:
+        return redirect("/login")
 
+    if request.method == "POST":
+        url = request.form.get("url")
+
+        if not url.startswith("http"):
+            url = "http://" + url
+
+        parsed = urlparse(url)
+        if not parsed.netloc:
+            return render_template("scan.html", error="Invalid URL")
+
+        results = scan_website(url)
+
+        conn = sqlite3.connect("data.db")
+        c = conn.cursor()
+        c.execute(
+            "INSERT INTO scans (url, result, date) VALUES (?, ?, ?)",
+            (url, " | ".join(results), str(datetime.datetime.now()))
+        )
+        conn.commit()
+        conn.close()
+
+        return render_template("scan.html", results=results, target=url)
+
+    return render_template("scan.html")
+
+# 🚪 تسجيل خروج
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+# ▶️ تشغيل
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
