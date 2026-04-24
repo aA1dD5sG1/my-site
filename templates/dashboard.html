@@ -1,33 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dashboard</title>
-    <style>
-        body { background:#0f172a; color:white; font-family:Arial; }
-        .box { max-width:600px; margin:auto; padding:20px; }
+<h1>📊 Dashboard</h1>
 
-        .item {
-            background:#1e293b;
-            padding:10px;
-            margin:10px 0;
-            border-radius:8px;
-        }
-    </style>
-</head>
-<body>
+<p>Total Scans: {{ scans }}</p>
 
-<div class="box">
-    <h1>📊 Dashboard</h1>
-
-    <p>Total Scans: {{ total }}</p>
-
-    {% for h in history %}
-        <div class="item">
-            🌐 {{ h.url }} <br>
-            🔍 Issues: {{ h.count }}
-        </div>
+<h3>Scan History:</h3>
+<ul>
+    {% for item in history %}
+        <li>
+            {{ item.url }} -
+            {% if item.status == "danger" %}
+                🔴 Dangerous
+            {% elif item.status == "warning" %}
+                🟡 Warning
+            {% else %}
+                🟢 Safe
+            {% endif %}
+        </li>
     {% endfor %}
-</div>
+</ul>
 
-</body>
-</html>
+<a href="/scan">Start New Scan</a>
