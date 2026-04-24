@@ -1,78 +1,80 @@
-from flask import Flask, render_template, request, redirect, url_for
-import requests
-from bs4 import BeautifulSoup
+from flask import Flask, render_template, request, redirect, session, url_for
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.secret_key = "secret123"  # غيرها لاحقاً
 
-scan_count = 0
-scan_history = []
+# إنشاء قاعدة البيانات
+def init_db():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
 
-@app.route('/')
+init_db()
+
+# الصفحة الرئيسية
+@app.route("/")
 def home():
-    return render_template("index.html")
+    if "user" in session:
+        return f"مرحباً {session['user']} 👋"
+    return redirect("/login")
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        return redirect(url_for('dashboard'))
-    return render_template("login.html")
+# تسجيل
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        user = request.form["username"]
+        password = request.form["password"]
 
-@app.route('/dashboard')
-def dashboard():
-    return render_template("dashboard.html", scans=scan_count, history=scan_history)
-
-@app.route('/scan', methods=['GET', 'POST'])
-def scan():
-    global scan_count, scan_history
-
-    if request.method == 'POST':
-        url = request.form.get("url")
-
-        results = []
-        status = "safe"
-
-        scan_count += 1
+        hashed = generate_password_hash(password)
 
         try:
-            r = requests.get(url, timeout=5)
-            headers = r.headers
-
-            # فحص الهيدرز
-            if "X-Frame-Options" not in headers:
-                results.append("⚠️ Missing X-Frame-Options")
-                status = "warning"
-
-            if "Content-Security-Policy" not in headers:
-                results.append("⚠️ Missing CSP")
-                status = "warning"
-
-            if "X-Content-Type-Options" not in headers:
-                results.append("⚠️ Missing X-Content-Type-Options")
-                status = "warning"
-
-            # تحليل الصفحة
-            soup = BeautifulSoup(r.text, "html.parser")
-            forms = soup.find_all("form")
-
-            if forms:
-                results.append(f"ℹ️ Found {len(forms)} forms")
-
-            if not results:
-                results.append("✅ No obvious issues found")
-
+            conn = sqlite3.connect("users.db")
+            c = conn.cursor()
+            c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user, hashed))
+            conn.commit()
+            conn.close()
+            return redirect("/login")
         except:
-            results.append("❌ Error scanning site")
-            status = "danger"
+            return "المستخدم موجود مسبقاً ❌"
 
-        scan_history.append({
-            "url": url,
-            "status": status
-        })
+    return render_template("register.html")
 
-        return render_template("scan.html", results=results, target=url)
+# تسجيل دخول
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        user = request.form["username"]
+        password = request.form["password"]
 
-    return render_template("scan.html", results=None)
+        conn = sqlite3.connect("users.db")
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE username=?", (user,))
+        result = c.fetchone()
+        conn.close()
 
+        if result and check_password_hash(result[2], password):
+            session["user"] = user
+            return redirect("/")
+        else:
+            return "بيانات خاطئة ❌"
+
+    return render_template("login.html")
+
+# تسجيل خروج
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect("/login")
 
 if __name__ == "__main__":
     app.run(debug=True)
