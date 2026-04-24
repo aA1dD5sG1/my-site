@@ -1,82 +1,56 @@
-from flask import Flask, request, render_template, redirect, session
-import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
+from flask import Flask, request, render_template_string
+import logging
+import re
 
 app = Flask(__name__)
-app.secret_key = "secret123"
 
-# 📦 إنشاء قاعدة البيانات
-def init_db():
-    conn = sqlite3.connect("db.db")
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            username TEXT,
-            password TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+logging.basicConfig(level=logging.INFO)
 
-init_db()
+# كلمات/أنماط مشبوهة
+xss_patterns = ["<script>", "onerror", "alert(", "<img", "<svg"]
+sql_patterns = ["' OR", "'--", "UNION", "SELECT", "DROP", "--"]
 
-# 🏠 الصفحة الرئيسية
+def detect_attack(data):
+    data = data.lower()
+    
+    for x in xss_patterns:
+        if x.lower() in data:
+            return "XSS Attempt"
+    
+    for s in sql_patterns:
+        if s.lower() in data:
+            return "SQL Injection Attempt"
+    
+    return None
+
+@app.before_request
+def monitor():
+    ip = request.remote_addr
+    url = request.url
+    data = request.get_data(as_text=True)
+
+    attack = detect_attack(data)
+
+    app.logger.info(f"IP: {ip}")
+    app.logger.info(f"URL: {url}")
+    app.logger.info(f"DATA: {data}")
+
+    if attack:
+        app.logger.warning(f"⚠️ {attack} from {ip}")
+
 @app.route("/")
 def home():
-    return redirect("/login")
+    return """
+    <h2>Test Page</h2>
+    <form method="POST" action="/test">
+        <input name="input" placeholder="Try attack here">
+        <button type="submit">Send</button>
+    </form>
+    """
 
-# 🔐 تسجيل دخول
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        user = request.form.get("username")
-        password = request.form.get("password")
+@app.route("/test", methods=["POST"])
+def test():
+    user_input = request.form.get("input")
+    return f"You entered: {user_input}"
 
-        conn = sqlite3.connect("db.db")
-        cur = conn.cursor()
-        cur.execute("SELECT password FROM users WHERE username=?", (user,))
-        result = cur.fetchone()
-        conn.close()
-
-        if result and check_password_hash(result[0], password):
-            session["user"] = user
-            return redirect("/dashboard")
-        else:
-            return "❌ خطأ في تسجيل الدخول"
-
-    return render_template("login.html")
-
-# 📝 تسجيل مستخدم
-@app.route("/register", methods=["POST"])
-def register():
-    user = request.form.get("username")
-    password = request.form.get("password")
-
-    hashed = generate_password_hash(password)
-
-    conn = sqlite3.connect("db.db")
-    cur = conn.cursor()
-    cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (user, hashed))
-    conn.commit()
-    conn.close()
-
-    return redirect("/login")
-
-# 📊 لوحة التحكم
-@app.route("/dashboard")
-def dashboard():
-    if "user" not in session:
-        return redirect("/login")
-
-    return render_template("dashboard.html", user=session["user"])
-
-# 🚪 تسجيل خروج
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/login")
-
-# 🔥 السطر المهم (للـ Render والسيرفرات)
-app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+app.run()
