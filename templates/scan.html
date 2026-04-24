@@ -1,45 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Scan</title>
-    <style>
-        body { background:#0f172a; color:white; font-family:Arial; }
-        .box { max-width:600px; margin:auto; padding:20px; }
-        input { width:70%; padding:10px; }
-        button { padding:10px; background:#2563eb; color:white; border:none; }
+<h1>Scan Website</h1>
 
-        .card {
-            padding:10px;
-            margin:10px 0;
-            border-radius:8px;
-        }
+<form method="POST">
+    <input type="text" name="url" placeholder="http://example.com" required>
+    <button type="submit">Scan</button>
+</form>
 
-        .low { background:#1e40af; }
-        .medium { background:#ca8a04; }
-        .high { background:#dc2626; }
-        .info { background:#334155; }
-    </style>
-</head>
-<body>
-
-<div class="box">
-    <h1>🔍 Scan Website</h1>
-
-    <form method="POST">
-        <input name="url" placeholder="http://example.com">
-        <button>Scan</button>
-    </form>
-
-    {% if results %}
-        <h2>Results for {{ url }}</h2>
-
-        {% for r, level in results %}
-            <div class="card {{ level }}">
-                {{ r }}
-            </div>
+{% if results %}
+    <h2>Results for {{ target }}</h2>
+    <ul>
+        {% for r in results %}
+            <li>{{ r }}</li>
         {% endfor %}
-    {% endif %}
-</div>
-
-</body>
-</html>
+    </ul>
+{% endif %}
