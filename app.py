@@ -1,70 +1,66 @@
-from flask import Flask, request, redirect
-import os
+from flask import Flask, request, redirect, render_template
+import requests
 import logging
+import os
+from urllib.parse import urlparse
 
 app = Flask(__name__)
-
-# تفعيل logging
 logging.basicConfig(level=logging.INFO)
 
-# تسجيل كل الطلبات
-@app.before_request
-def log_request_info():
-    logging.info("====== NEW REQUEST ======")
-    logging.info(f"IP: {request.remote_addr}")
-    logging.info(f"Method: {request.method}")
-    logging.info(f"URL: {request.url}")
-    logging.info(f"User-Agent: {request.headers.get('User-Agent')}")
-    
-    if request.method == "POST":
-        logging.info(f"POST DATA: {request.form}")
-    else:
-        logging.info(f"GET PARAMS: {request.args}")
+scan_history = []
 
-# الصفحة الرئيسية
 @app.route('/')
 def home():
-    return "<h1>Home Page</h1>"
+    return render_template("index.html", history=scan_history)
 
-# تسجيل الدخول (🔥 معدل)
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+@app.route('/scan', methods=['POST'])
+def scan():
+    url = request.form.get('url')
 
-        # 🔥 طباعة قوية في logs
-        logging.warning("====== LOGIN ATTEMPT ======")
-        logging.warning(f"Username: {username}")
-        logging.warning(f"Password: {password}")
+    parsed = urlparse(url)
+    if not parsed.scheme.startswith("http"):
+        return "Invalid URL"
 
-        # 🔥 عرض مباشر للتأكيد 100%
-        return f"""
-        <h2>LOGIN CAPTURED ✅</h2>
-        <p>Username: {username}</p>
-        <p>Password: {password}</p>
-        <a href="/dashboard">Go to Dashboard</a>
-        """
+    report = []
 
-    return '''
-    <form method="POST" action="/login">
-        <input name="username" placeholder="Username" required><br>
-        <input name="password" type="password" placeholder="Password" required><br>
-        <button type="submit">Login</button>
-    </form>
-    '''
+    try:
+        res = requests.get(url, timeout=5)
+        headers = res.headers
+        html = res.text.lower()
 
-# لوحة التحكم
-@app.route('/dashboard')
-def dashboard():
-    return "<h1>Dashboard</h1>"
+        # Security checks
+        if "content-security-policy" not in headers:
+            report.append("❌ Missing CSP")
 
-# تسجيل الخروج
-@app.route('/logout')
-def logout():
-    return redirect('/login')
+        if "x-frame-options" not in headers:
+            report.append("❌ Missing X-Frame-Options")
 
-# تشغيل مناسب لـ Render
+        if "x-content-type-options" not in headers:
+            report.append("❌ Missing X-Content-Type-Options")
+
+        if "strict-transport-security" not in headers:
+            report.append("❌ Missing HSTS")
+
+        if "<script>" in html:
+            report.append("⚠️ Inline JS detected")
+
+        if "password" in html:
+            report.append("🔎 Login form detected")
+
+        if not report:
+            report.append("✅ No major issues")
+
+    except Exception as e:
+        report.append(f"Error: {e}")
+
+    # حفظ في التاريخ
+    scan_history.insert(0, {
+        "url": url,
+        "report": report
+    })
+
+    return redirect('/')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
