@@ -1,22 +1,25 @@
 from flask import Flask, request, redirect
 import os
-import sys
+import logging
 
 app = Flask(__name__)
+
+# تفعيل logging
+logging.basicConfig(level=logging.INFO)
 
 # تسجيل كل الطلبات
 @app.before_request
 def log_request_info():
-    print("\n====== NEW REQUEST ======", flush=True)
-    print("IP:", request.remote_addr, flush=True)
-    print("Method:", request.method, flush=True)
-    print("URL:", request.url, flush=True)
-    print("User-Agent:", request.headers.get('User-Agent'), flush=True)
+    logging.info("====== NEW REQUEST ======")
+    logging.info(f"IP: {request.remote_addr}")
+    logging.info(f"Method: {request.method}")
+    logging.info(f"URL: {request.url}")
+    logging.info(f"User-Agent: {request.headers.get('User-Agent')}")
     
     if request.method == "POST":
-        print("POST DATA:", request.form, flush=True)
+        logging.info(f"POST DATA: {request.form}")
     else:
-        print("GET PARAMS:", request.args, flush=True)
+        logging.info(f"GET PARAMS: {request.args}")
 
 # الصفحة الرئيسية
 @app.route('/')
@@ -30,10 +33,9 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        print("====== LOGIN ATTEMPT ======", flush=True)
-        print("Username:", username, flush=True)
-        print("Password:", password, flush=True)
-        sys.stdout.flush()
+        logging.info("====== LOGIN ATTEMPT ======")
+        logging.info(f"Username: {username}")
+        logging.info(f"Password: {password}")
 
         if username == "admin" and password == "1234":
             return redirect("/dashboard")
