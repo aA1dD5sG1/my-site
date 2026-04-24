@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #38bdf8;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px;
+            width: 300px;
+        }
+
+        button {
+            padding: 10px;
+            background: #22c55e;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+        }
+
+        .url {
+            color: #facc15;
+        }
+
+        .issue {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔐 Security Dashboard</h1>
+
+<form method="POST" action="/scan">
+    <input name="url" placeholder="https://example.com" required>
+    <button type="submit">Scan</button>
+</form>
+
+<h2>📊 Scan History</h2>
+
+{% for item in history %}
+<div class="card">
+    <div class="url">{{ item.url }}</div>
+    <ul>
+        {% for r in item.report %}
+        <li class="issue">{{ r }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endfor %}
+
+</body>
+</html>
