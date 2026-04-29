@@ -1,10 +1,22 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import secrets
+import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "secret123"
+
+# =========================
+# 🔥 إعداد logging
+# =========================
+logging.basicConfig(level=logging.INFO)
+
+def log_request():
+    logging.info(f"IP: {request.remote_addr}")
+    logging.info(f"PATH: {request.path}")
+    logging.info(f"METHOD: {request.method}")
+    logging.info(f"FORM: {request.form}")
 
 # =========================
 # 🗄️ قاعدة البيانات
@@ -13,7 +25,6 @@ def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
 
-    # 👇 أضفنا token هنا
     c.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +44,8 @@ init_db()
 # =========================
 @app.route("/")
 def home():
+    log_request()
+
     if "user" in session:
         return f"مرحباً {session['user']} 👋 <br><a href='/logout'>Logout</a>"
     return redirect("/login")
@@ -42,9 +55,13 @@ def home():
 # =========================
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    log_request()
+
     if request.method == "POST":
         user = request.form["username"]
         password = request.form["password"]
+
+        logging.info(f"NEW REGISTER: {user}")
 
         hashed = generate_password_hash(password)
 
@@ -68,9 +85,13 @@ def register():
 # =========================
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    log_request()
+
     if request.method == "POST":
         user = request.form["username"]
         password = request.form["password"]
+
+        logging.info(f"LOGIN TRY: {user}")
 
         conn = sqlite3.connect("users.db")
         c = conn.cursor()
@@ -80,8 +101,10 @@ def login():
 
         if result and check_password_hash(result[2], password):
             session["user"] = user
+            logging.info(f"LOGIN SUCCESS: {user}")
             return redirect("/")
         else:
+            logging.warning(f"LOGIN FAIL: {user}")
             return "بيانات خاطئة ❌"
 
     return render_template("login.html")
@@ -91,10 +114,14 @@ def login():
 # =========================
 @app.route("/generate-token")
 def generate_token():
+    log_request()
+
     if "user" not in session:
         return redirect("/login")
 
     token = secrets.token_urlsafe(32)
+
+    logging.info(f"TOKEN GENERATED FOR: {session['user']}")
 
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -113,6 +140,8 @@ def generate_token():
 # =========================
 @app.route("/token-login")
 def token_login():
+    log_request()
+
     token = request.args.get("token")
 
     conn = sqlite3.connect("users.db")
@@ -123,7 +152,8 @@ def token_login():
     if result:
         session["user"] = result[0]
 
-        # 🔥 حذف التوكن بعد الاستخدام
+        logging.info(f"TOKEN LOGIN SUCCESS: {result[0]}")
+
         c.execute("UPDATE users SET token=NULL WHERE username=?", (result[0],))
         conn.commit()
         conn.close()
@@ -131,6 +161,7 @@ def token_login():
         return redirect("/")
 
     conn.close()
+    logging.warning("INVALID TOKEN USED")
     return "Token غير صالح ❌"
 
 # =========================
@@ -138,7 +169,13 @@ def token_login():
 # =========================
 @app.route("/logout")
 def logout():
+    log_request()
+
+    user = session.get("user")
     session.pop("user", None)
+
+    logging.info(f"LOGOUT: {user}")
+
     return redirect("/login")
 
 # =========================
