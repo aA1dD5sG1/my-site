@@ -14,5 +14,15 @@
 <button onclick="addComment()">إرسال</button>
 
 <div id="comments"></div>
+<script>
+function addComment() {
+  let input = document.getElementById("commentInput");
+  let comments = document.getElementById("comments");
+
+  comments.innerHTML += "<p>" + input.value + "</p>";
+
+  input.value = "";
+}
+  </script>
 </body>
 </html>
